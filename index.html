@@ -1,0 +1,1141 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>탭 1 - 시간표 조율</title>
+  <style>
+    :root {
+      --bg: #f8fafc;
+      --panel: #ffffff;
+      --line: #e2e8f0;
+      --text: #0f172a;
+      --muted: #64748b;
+      --accent: #0f172a;
+      --good: #16a34a;
+      --good2: #86efac;
+      --mid: #fcd34d;
+      --bad: #fda4af;
+      --zero: #e2e8f0;
+      --shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+      --radius: 18px;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+    h1, h2, h3, p { margin: 0; }
+    button, input, select, textarea { font: inherit; }
+    .app {
+      max-width: 1660px;
+      margin: 0 auto;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: end;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+    .title h1 { font-size: 30px; line-height: 1.1; margin-bottom: 6px; }
+    .title p { color: var(--muted); font-size: 14px; max-width: 980px; line-height: 1.5; }
+    .pill-row { display: flex; flex-wrap: wrap; gap: 8px; }
+    .pill {
+      background: #eef2ff;
+      color: #3730a3;
+      border-radius: 999px;
+      padding: 7px 12px;
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .layout {
+      display: grid;
+      grid-template-columns: 420px minmax(0, 1fr);
+      gap: 20px;
+      align-items: start;
+    }
+    .left-stack, .right-stack { display: flex; flex-direction: column; gap: 20px; }
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+    .panel-header {
+      padding: 18px 20px 12px;
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .panel-header h2 { font-size: 18px; }
+    .panel-header p { font-size: 13px; color: var(--muted); line-height: 1.5; }
+    .panel-body {
+      padding: 18px 20px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .row { display: flex; gap: 10px; flex-wrap: wrap; }
+    .field { display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 120px; }
+    .field label { font-size: 12px; color: var(--muted); font-weight: 700; }
+    input, select, button, textarea {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: white;
+      padding: 0 12px;
+    }
+    input, select, button { height: 40px; }
+    textarea { min-height: 88px; padding: 12px; resize: vertical; }
+    button { cursor: pointer; font-weight: 700; }
+    button.primary { background: var(--accent); color: white; border-color: var(--accent); }
+    button.ghost { background: #f8fafc; }
+    button.danger { background: #fff1f2; color: #be123c; border-color: #fecdd3; }
+    .tiny { height: 30px; padding: 0 10px; border-radius: 10px; font-size: 12px; }
+    .list { display: flex; flex-direction: column; gap: 8px; max-height: 280px; overflow: auto; }
+    .item {
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 10px 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      background: #fff;
+    }
+    .item.active { border-color: #0f172a; box-shadow: inset 0 0 0 1px #0f172a; }
+    .meta { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 4px 8px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      font-size: 11px;
+      font-weight: 700;
+      background: #f8fafc;
+    }
+    .sub { color: var(--muted); font-size: 12px; line-height: 1.45; }
+    .tabs { display: flex; gap: 8px; flex-wrap: wrap; }
+    .tab-btn.active { background: var(--accent); color: white; border-color: var(--accent); }
+    .toolbar { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; }
+    .toolbar .field { min-width: 0; }
+    .grid-wrap, .calendar-wrap { overflow: auto; border: 1px solid var(--line); border-radius: 18px; background: white; }
+    .editor-grid, .calendar-grid { display: grid; min-width: 1060px; }
+    .editor-cell, .calendar-cell, .time-cell, .date-head { border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+    .date-head {
+      position: sticky;
+      top: 0;
+      z-index: 3;
+      background: white;
+      text-align: center;
+      padding: 8px 6px;
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .time-cell {
+      position: sticky;
+      left: 0;
+      z-index: 2;
+      background: white;
+      padding: 6px 8px;
+      font-size: 11px;
+      color: var(--muted);
+      min-height: 34px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .editor-cell { min-height: 34px; background: white; cursor: crosshair; }
+    .editor-cell:hover { background: #f8fafc; }
+    .editor-cell.blocked { background: #0f172a; }
+    .calendar-cell {
+      min-height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 14px;
+      cursor: pointer;
+      transition: transform 0.08s ease;
+    }
+    .calendar-cell:hover { transform: scale(1.03); }
+    .calendar-cell.zero { background: var(--zero); color: #64748b; }
+    .calendar-cell.low { background: var(--bad); color: #4c0519; }
+    .calendar-cell.mid { background: var(--mid); color: #78350f; }
+    .calendar-cell.high { background: var(--good2); color: #14532d; }
+    .calendar-cell.full { background: var(--good); color: white; }
+    .legend { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; font-size: 12px; color: var(--muted); }
+    .legend span.box { width: 16px; height: 16px; display: inline-block; border-radius: 4px; border: 1px solid rgba(0,0,0,0.05); }
+    .room-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+    .room-card { border: 1px dashed var(--line); border-radius: 14px; padding: 12px; background: #fafcff; }
+    .names { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+    .modal {
+      position: fixed; inset: 0; background: rgba(15, 23, 42, 0.5);
+      display: none; align-items: center; justify-content: center; padding: 20px; z-index: 30;
+    }
+    .modal.open { display: flex; }
+    .modal-card {
+      background: white; width: min(580px, 100%); border-radius: 20px; box-shadow: var(--shadow);
+      overflow: hidden; border: 1px solid var(--line);
+    }
+    .modal-head { padding: 18px 20px 12px; border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; align-items: center; }
+    .modal-body { padding: 18px 20px 22px; display: flex; flex-direction: column; gap: 14px; }
+    @media (max-width: 1180px) {
+      .layout { grid-template-columns: 1fr; }
+      .toolbar { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+    @media (max-width: 760px) {
+      .app { padding: 14px; }
+      .toolbar, .room-grid { grid-template-columns: 1fr; }
+      .title h1 { font-size: 24px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="topbar">
+      <div class="title">
+        <h1>탭 1 · 시간표 조율</h1>
+        <p>
+          시간표를 만들고 참여자를 넣은 뒤, 사람별 불가시간을 입력해서 30분 단위로 가능한 시간을 계산합니다.
+          일정 확정 시 시간표 이름이 기본 일정명으로 들어가고, 확정된 일정은 다른 시간표에도 전역 불가로 반영됩니다.
+        </p>
+      </div>
+      <div class="pill-row">
+        <span class="pill">시간표 생성</span>
+        <span class="pill">드래그 입력</span>
+        <span class="pill">전역 확정 일정 반영</span>
+        <span class="pill">연습실 배정</span>
+      </div>
+    </div>
+
+
+    <div class="layout">
+      <div class="left-stack">
+        <div class="panel">
+          <div class="panel-header">
+            <h2>1) 사람 관리</h2>
+            <p>전역 사람 목록입니다. 한 번 추가한 사람은 여러 시간표에서 다시 선택할 수 있습니다.</p>
+          </div>
+          <div class="panel-body">
+            <div class="row">
+              <div class="field">
+                <label for="personName">이름</label>
+                <input id="personName" placeholder="예: 주환" />
+              </div>
+              <div class="field">
+                <label for="personCampus">소속 캠퍼스</label>
+                <select id="personCampus">
+                  <option>율전</option>
+                  <option>명륜</option>
+                </select>
+              </div>
+            </div>
+            <div class="row">
+              <button class="primary" id="addPersonBtn">사람 추가</button>
+              <button class="ghost" id="seedBtn">예시 데이터</button>
+              <button class="ghost" id="exportBtn">JSON 내보내기</button>
+              <label class="tiny" style="display:inline-flex;align-items:center;justify-content:center;border:1px solid var(--line);border-radius:10px;padding:0 12px;background:white;cursor:pointer;">
+                JSON 불러오기<input id="importFile" type="file" accept="application/json" style="display:none;" />
+              </label>
+            </div>
+            <div class="list" id="peopleList"></div>
+          </div>
+        </div>
+
+
+        <div class="panel">
+          <div class="panel-header">
+            <h2>2) 시간표 생성 / 선택</h2>
+            <p>어떤 목적으로 일정을 맞추는지 시간표를 만들고 참여자를 연결하세요.</p>
+          </div>
+          <div class="panel-body">
+            <div class="field">
+              <label for="timetableName">시간표 이름</label>
+              <input id="timetableName" placeholder="예: 정기합주 / 클라 파트연습" />
+            </div>
+            <div class="field">
+              <label for="timetableDesc">설명(선택)</label>
+              <textarea id="timetableDesc" placeholder="시간표 목적이나 메모"></textarea>
+            </div>
+            <div class="row">
+              <button class="primary" id="addTimetableBtn">시간표 만들기</button>
+              <button class="danger" id="deleteTimetableBtn">선택 시간표 삭제</button>
+            </div>
+            <div class="list" id="timetableList"></div>
+          </div>
+        </div>
+
+
+        <div class="panel">
+          <div class="panel-header">
+            <h2>3) 참여자 / 전역 확정 일정</h2>
+            <p>선택한 시간표의 참여자를 관리하고, 모든 시간표에 반영되는 확정 일정을 확인합니다.</p>
+          </div>
+          <div class="panel-body">
+            <div class="field">
+              <label for="participantSelect">참여자 추가</label>
+              <select id="participantSelect"></select>
+            </div>
+            <div class="row">
+              <button class="primary" id="addParticipantBtn">참여자 추가</button>
+            </div>
+            <div class="list" id="participantList"></div>
+            <div class="sub">전역 확정 일정</div>
+            <div class="list" id="globalEventList"></div>
+          </div>
+        </div>
+      </div>
+
+
+      <div class="right-stack">
+        <div class="panel">
+          <div class="panel-header">
+            <h2>4) 입력 / 보기 설정</h2>
+            <p>불가시간 입력 모드와 결과 표시 기간을 조절합니다. 이동시간은 자동 계산하지 않고 직접 입력합니다.</p>
+          </div>
+          <div class="panel-body">
+            <div class="tabs">
+              <button class="tab-btn tiny active" data-editor-mode="weekly">주간 고정 불가</button>
+              <button class="tab-btn tiny" data-editor-mode="date">특정 날짜 불가</button>
+            </div>
+            <div class="toolbar">
+              <div class="field">
+                <label for="editorPerson">입력 대상 사람</label>
+                <select id="editorPerson"></select>
+              </div>
+              <div class="field">
+                <label for="editorCampus">해당 일정 캠퍼스</label>
+                <select id="editorCampus">
+                  <option>율전</option>
+                  <option>명륜</option>
+                </select>
+              </div>
+              <div class="field" id="editorDateField" style="display:none;">
+                <label for="editorDate">특정 날짜</label>
+                <input type="date" id="editorDate" />
+              </div>
+              <div class="field">
+                <label for="viewStartDate">시작 날짜</label>
+                <input type="date" id="viewStartDate" />
+              </div>
+              <div class="field">
+                <label for="viewWeeks">표시 주 수</label>
+                <select id="viewWeeks">
+                  <option value="1">1주</option>
+                  <option value="2" selected>2주</option>
+                  <option value="3">3주</option>
+                  <option value="4">4주</option>
+                </select>
+              </div>
+            </div>
+            <div class="sub">드래그 시작 칸이 비어 있으면 추가, 이미 막혀 있으면 해제됩니다. 같은 사람에 대해 율전/명륜 일정을 번갈아 입력할 수 있습니다.</div>
+            <div class="grid-wrap">
+              <div class="editor-grid" id="editorGrid"></div>
+            </div>
+          </div>
+        </div>
+
+
+        <div class="panel">
+          <div class="panel-header">
+            <h2>5) 가능 인원 결과</h2>
+            <p>선택한 시간표 참여자 기준으로 30분 단위 가능 인원을 계산합니다. 확정 일정은 다른 시간표에서 자동 반영됩니다.</p>
+          </div>
+          <div class="panel-body">
+            <div class="row">
+              <div class="field">
+                <label for="minCountFilter">최소 인원 필터</label>
+                <select id="minCountFilter">
+                  <option value="0">전체</option>
+                  <option value="1">1명 이상</option>
+                  <option value="2">2명 이상</option>
+                  <option value="3">3명 이상</option>
+                  <option value="4">4명 이상</option>
+                  <option value="5">5명 이상</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="recommendCount">추천 개수</label>
+                <select id="recommendCount">
+                  <option value="5">5개</option>
+                  <option value="10" selected>10개</option>
+                  <option value="20">20개</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="mergeRecommend">추천 묶기</label>
+                <select id="mergeRecommend">
+                  <option value="on" selected>연속 시간대 묶기</option>
+                  <option value="off">30분 단위 그대로</option>
+                </select>
+              </div>
+              <div class="field">
+                <label>&nbsp;</label>
+                <div class="sub" id="summaryText"></div>
+              </div>
+            </div>
+            <div class="legend">
+              <span><span class="box" style="background:#e2e8f0"></span> 0명</span>
+              <span><span class="box" style="background:#fda4af"></span> 적음</span>
+              <span><span class="box" style="background:#fcd34d"></span> 중간</span>
+              <span><span class="box" style="background:#86efac"></span> 많음</span>
+              <span><span class="box" style="background:#16a34a"></span> 전원 가능</span>
+            </div>
+            <div class="calendar-wrap">
+              <div class="calendar-grid" id="calendarGrid"></div>
+            </div>
+          </div>
+        </div>
+
+
+        <div class="panel">
+          <div class="panel-header">
+            <h2>6) 일정 확정 / 연습실</h2>
+            <p>후보 시간 중 하나를 확정하면 이 시간표 이름이 기본 일정명으로 들어가고, 참여자 전체의 전역 일정으로 반영됩니다.</p>
+          </div>
+          <div class="panel-body">
+            <div class="toolbar">
+              <div class="field">
+                <label for="eventTitle">일정명</label>
+                <input id="eventTitle" placeholder="시간표 이름이 자동 입력됩니다" />
+              </div>
+              <div class="field">
+                <label for="eventDate">날짜</label>
+                <input type="date" id="eventDate" />
+              </div>
+              <div class="field">
+                <label for="eventStart">시작</label>
+                <select id="eventStart"></select>
+              </div>
+              <div class="field">
+                <label for="eventEnd">끝</label>
+                <select id="eventEnd"></select>
+              </div>
+              <div class="field">
+                <label for="eventCampus">캠퍼스</label>
+                <select id="eventCampus">
+                  <option>율전</option>
+                  <option>명륜</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="eventRoom">연습실</label>
+                <select id="eventRoom"></select>
+              </div>
+              <div class="field">
+                <label for="eventStatus">상태</label>
+                <select id="eventStatus">
+                  <option>계획중</option>
+                  <option>예약확정</option>
+                </select>
+              </div>
+              <div class="field">
+                <label>&nbsp;</label>
+                <button class="primary" id="confirmEventBtn">일정 확정 추가</button>
+              </div>
+            </div>
+            <div class="room-grid">
+              <div class="room-card">
+                <div style="font-weight:800; margin-bottom:8px;">명륜 연습실</div>
+                <div class="sub">1층 · 4층 · 동방</div>
+              </div>
+              <div class="room-card">
+                <div style="font-weight:800; margin-bottom:8px;">율전 연습실</div>
+                <div class="sub">3층 · 2층 · 동방 · 지하</div>
+              </div>
+            </div>
+            <div class="list" id="timetableEventList"></div>
+            <div class="list" id="recommendList"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <div class="modal" id="detailModal">
+    <div class="modal-card">
+      <div class="modal-head">
+        <h3>참여 가능한 사람</h3>
+        <button class="tiny" id="closeModalBtn">닫기</button>
+      </div>
+      <div class="modal-body" id="modalBody"></div>
+    </div>
+  </div>
+
+
+  <script>
+    const DAYS = ["월", "화", "수", "목", "금", "토", "일"];
+    const CAMPUS_ROOMS = {
+      "명륜": ["1층", "4층", "동방"],
+      "율전": ["3층", "2층", "동방", "지하"]
+    };
+    const SLOT_MIN = 30;
+    const START_HOUR = 9;
+    const END_HOUR = 23;
+
+
+    const state = {
+      people: [],
+      timetables: [],
+      weeklyRules: [],
+      dateRules: [],
+      confirmedEvents: [],
+      selectedTimetableId: "",
+      editorMode: "weekly",
+      editorPersonId: "",
+      editorCampus: "율전",
+      editorDate: toISODate(new Date()),
+      viewStartDate: getMonday(new Date()),
+      viewWeeks: 2,
+      minCountFilter: 0,
+      recommendCount: 10,
+      mergeRecommend: true,
+      drag: { active: false, mode: null, touched: new Set() },
+    };
+
+
+    const els = {
+      personName: document.getElementById("personName"),
+      personCampus: document.getElementById("personCampus"),
+      addPersonBtn: document.getElementById("addPersonBtn"),
+      seedBtn: document.getElementById("seedBtn"),
+      exportBtn: document.getElementById("exportBtn"),
+      importFile: document.getElementById("importFile"),
+      peopleList: document.getElementById("peopleList"),
+      timetableName: document.getElementById("timetableName"),
+      timetableDesc: document.getElementById("timetableDesc"),
+      addTimetableBtn: document.getElementById("addTimetableBtn"),
+      deleteTimetableBtn: document.getElementById("deleteTimetableBtn"),
+      timetableList: document.getElementById("timetableList"),
+      participantSelect: document.getElementById("participantSelect"),
+      addParticipantBtn: document.getElementById("addParticipantBtn"),
+      participantList: document.getElementById("participantList"),
+      globalEventList: document.getElementById("globalEventList"),
+      editorPerson: document.getElementById("editorPerson"),
+      editorCampus: document.getElementById("editorCampus"),
+      editorDate: document.getElementById("editorDate"),
+      editorDateField: document.getElementById("editorDateField"),
+      viewStartDate: document.getElementById("viewStartDate"),
+      viewWeeks: document.getElementById("viewWeeks"),
+      editorGrid: document.getElementById("editorGrid"),
+      minCountFilter: document.getElementById("minCountFilter"),
+      recommendCount: document.getElementById("recommendCount"),
+      mergeRecommend: document.getElementById("mergeRecommend"),
+      summaryText: document.getElementById("summaryText"),
+      calendarGrid: document.getElementById("calendarGrid"),
+      eventTitle: document.getElementById("eventTitle"),
+      eventDate: document.getElementById("eventDate"),
+      eventStart: document.getElementById("eventStart"),
+      eventEnd: document.getElementById("eventEnd"),
+      eventCampus: document.getElementById("eventCampus"),
+      eventRoom: document.getElementById("eventRoom"),
+      eventStatus: document.getElementById("eventStatus"),
+      confirmEventBtn: document.getElementById("confirmEventBtn"),
+      timetableEventList: document.getElementById("timetableEventList"),
+      recommendList: document.getElementById("recommendList"),
+      detailModal: document.getElementById("detailModal"),
+      modalBody: document.getElementById("modalBody"),
+      closeModalBtn: document.getElementById("closeModalBtn"),
+      tabButtons: Array.from(document.querySelectorAll(".tab-btn")),
+    };
+
+
+    function uid(prefix = "id") {
+      return prefix + "_" + Math.random().toString(16).slice(2) + "_" + Date.now().toString(16);
+    }
+    function toISODate(date) {
+      const y = date.getFullYear();
+      const m = String(date.getMonth() + 1).padStart(2, "0");
+      const d = String(date.getDate()).padStart(2, "0");
+      return `${y}-${m}-${d}`;
+    }
+    function parseISODate(iso) {
+      const [y, m, d] = iso.split("-").map(Number);
+      return new Date(y, m - 1, d);
+    }
+    function getMonday(date) {
+      const d = new Date(date);
+      const day = d.getDay();
+      const diff = day === 0 ? -6 : 1 - day;
+      d.setDate(d.getDate() + diff);
+      d.setHours(0, 0, 0, 0);
+      return d;
+    }
+    function addDays(date, days) {
+      const d = new Date(date);
+      d.setDate(d.getDate() + days);
+      return d;
+    }
+    function weekdayIndexFromDate(date) {
+      return (date.getDay() + 6) % 7;
+    }
+    function dateLabel(date) {
+      const mm = String(date.getMonth() + 1).padStart(2, "0");
+      const dd = String(date.getDate()).padStart(2, "0");
+      const day = DAYS[weekdayIndexFromDate(date)];
+      return `${mm}/${dd} (${day})`;
+    }
+    function timeOptions() {
+      const arr = [];
+      for (let h = START_HOUR; h < END_HOUR; h++) {
+        arr.push(h * 60);
+        arr.push(h * 60 + 30);
+      }
+      return arr;
+    }
+    const SLOT_STARTS = timeOptions();
+    function minToLabel(min) {
+      const h = String(Math.floor(min / 60)).padStart(2, "0");
+      const m = String(min % 60).padStart(2, "0");
+      return `${h}:${m}`;
+    }
+    function overlap(aStart, aEnd, bStart, bEnd) {
+      return aStart < bEnd && bStart < aEnd;
+    }
+    function escapeHtml(str) {
+      return String(str)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+
+    function getSelectedTimetable() {
+      return state.timetables.find(t => t.id === state.selectedTimetableId) || null;
+    }
+    function timetableParticipants() {
+      const t = getSelectedTimetable();
+      if (!t) return [];
+      return state.people.filter(p => t.participantIds.includes(p.id));
+    }
+    function viewDates() {
+      const out = [];
+      for (let i = 0; i < state.viewWeeks * 7; i++) out.push(addDays(state.viewStartDate, i));
+      return out;
+    }
+    function getPerson(id) {
+      return state.people.find(p => p.id === id);
+    }
+    function syncEventRooms() {
+      const campus = els.eventCampus.value;
+      els.eventRoom.innerHTML = CAMPUS_ROOMS[campus].map(r => `<option>${r}</option>`).join("");
+    }
+    function fillTimeSelect(selectEl) {
+      selectEl.innerHTML = SLOT_STARTS.map(min => `<option value="${min}">${minToLabel(min)}</option>`).join("");
+    }
+    fillTimeSelect(els.eventStart);
+    fillTimeSelect(els.eventEnd);
+    els.eventStart.value = String(18 * 60);
+    els.eventEnd.value = String(19 * 60);
+    syncEventRooms();
+
+
+    function addPerson(name, homeCampus) {
+      const clean = name.trim();
+      if (!clean) return;
+      state.people.push({ id: uid("p"), name: clean, homeCampus });
+      if (!state.editorPersonId) {
+        const last = state.people[state.people.length - 1];
+        state.editorPersonId = last.id;
+        state.editorCampus = homeCampus;
+      }
+      render();
+    }
+    function removePerson(personId) {
+      state.people = state.people.filter(p => p.id !== personId);
+      state.weeklyRules = state.weeklyRules.filter(r => r.personId !== personId);
+      state.dateRules = state.dateRules.filter(r => r.personId !== personId);
+      state.confirmedEvents = state.confirmedEvents.map(e => ({ ...e, participantIds: e.participantIds.filter(id => id !== personId) })).filter(e => e.participantIds.length > 0);
+      state.timetables = state.timetables.map(t => ({ ...t, participantIds: t.participantIds.filter(id => id !== personId) }));
+      if (state.editorPersonId === personId) state.editorPersonId = state.people[0]?.id || "";
+      render();
+    }
+    function addTimetable(name, description) {
+      const clean = name.trim();
+      if (!clean) return;
+      const t = { id: uid("tt"), name: clean, description: description.trim(), participantIds: [] };
+      state.timetables.push(t);
+      state.selectedTimetableId = t.id;
+      render();
+    }
+    function deleteSelectedTimetable() {
+      const tt = getSelectedTimetable();
+      if (!tt) return;
+      state.weeklyRules = state.weeklyRules.filter(r => r.timetableId !== tt.id);
+      state.dateRules = state.dateRules.filter(r => r.timetableId !== tt.id);
+      state.confirmedEvents = state.confirmedEvents.filter(e => e.timetableId !== tt.id);
+      state.timetables = state.timetables.filter(t => t.id !== tt.id);
+      state.selectedTimetableId = state.timetables[0]?.id || "";
+      render();
+    }
+    function addParticipant(personId) {
+      const tt = getSelectedTimetable();
+      if (!tt || !personId) return;
+      if (!tt.participantIds.includes(personId)) tt.participantIds.push(personId);
+      if (!state.editorPersonId) {
+        state.editorPersonId = personId;
+        const p = getPerson(personId);
+        if (p) state.editorCampus = p.homeCampus;
+      }
+      render();
+    }
+    function removeParticipant(personId) {
+      const tt = getSelectedTimetable();
+      if (!tt) return;
+      tt.participantIds = tt.participantIds.filter(id => id !== personId);
+      render();
+    }
+    function hasWeeklyCell(personId, dayIndex, startMin, campus) {
+      const tt = getSelectedTimetable();
+      if (!tt) return false;
+      return state.weeklyRules.some(r => r.timetableId === tt.id && r.personId === personId && r.dayIndex === dayIndex && r.startMin === startMin && r.endMin === startMin + SLOT_MIN && r.campus === campus);
+    }
+    function hasDateCell(personId, dateISO, startMin, campus) {
+      const tt = getSelectedTimetable();
+      if (!tt) return false;
+      return state.dateRules.some(r => r.timetableId === tt.id && r.personId === personId && r.dateISO === dateISO && r.startMin === startMin && r.endMin === startMin + SLOT_MIN && r.campus === campus);
+    }
+    function toggleWeeklyCell(personId, dayIndex, startMin, campus, forceMode = null) {
+      const tt = getSelectedTimetable();
+      if (!tt) return;
+      const exists = hasWeeklyCell(personId, dayIndex, startMin, campus);
+      const shouldAdd = forceMode ? forceMode === "add" : !exists;
+      if (shouldAdd && !exists) state.weeklyRules.push({ id: uid("w"), timetableId: tt.id, personId, dayIndex, startMin, endMin: startMin + SLOT_MIN, campus });
+      if (!shouldAdd && exists) state.weeklyRules = state.weeklyRules.filter(r => !(r.timetableId === tt.id && r.personId === personId && r.dayIndex === dayIndex && r.startMin === startMin && r.endMin === startMin + SLOT_MIN && r.campus === campus));
+    }
+    function toggleDateCell(personId, dateISO, startMin, campus, forceMode = null) {
+      const tt = getSelectedTimetable();
+      if (!tt) return;
+      const exists = hasDateCell(personId, dateISO, startMin, campus);
+      const shouldAdd = forceMode ? forceMode === "add" : !exists;
+      if (shouldAdd && !exists) state.dateRules.push({ id: uid("d"), timetableId: tt.id, personId, dateISO, startMin, endMin: startMin + SLOT_MIN, campus });
+      if (!shouldAdd && exists) state.dateRules = state.dateRules.filter(r => !(r.timetableId === tt.id && r.personId === personId && r.dateISO === dateISO && r.startMin === startMin && r.endMin === startMin + SLOT_MIN && r.campus === campus));
+    }
+    function mergeIntervals(items) {
+      if (!items.length) return [];
+      const sorted = items.slice().sort((a, b) => a.startMin - b.startMin || a.endMin - b.endMin);
+      const out = [ { ...sorted[0] } ];
+      for (let i = 1; i < sorted.length; i++) {
+        const cur = sorted[i];
+        const last = out[out.length - 1];
+        if (cur.startMin <= last.endMin) last.endMin = Math.max(last.endMin, cur.endMin);
+        else out.push({ ...cur });
+      }
+      return out;
+    }
+    function effectiveRulesForPersonOnDate(personId, dateISO) {
+      const date = parseISODate(dateISO);
+      const dayIndex = weekdayIndexFromDate(date);
+      const tt = getSelectedTimetable();
+      const blocks = [];
+      if (tt) {
+        for (const r of state.weeklyRules) if (r.timetableId === tt.id && r.personId === personId && r.dayIndex === dayIndex) blocks.push({ startMin: r.startMin, endMin: r.endMin });
+        for (const r of state.dateRules) if (r.timetableId === tt.id && r.personId === personId && r.dateISO === dateISO) blocks.push({ startMin: r.startMin, endMin: r.endMin });
+      }
+      for (const e of state.confirmedEvents) if (e.participantIds.includes(personId) && e.dateISO === dateISO) blocks.push({ startMin: e.startMin, endMin: e.endMin });
+      return mergeIntervals(blocks);
+    }
+    function computeCalendarCells() {
+      const people = timetableParticipants();
+      const dates = viewDates();
+      const result = [];
+      for (const date of dates) {
+        const dateISO = toISODate(date);
+        const byPerson = new Map();
+        for (const p of people) byPerson.set(p.id, effectiveRulesForPersonOnDate(p.id, dateISO));
+        for (const startMin of SLOT_STARTS) {
+          const endMin = startMin + SLOT_MIN;
+          const names = [];
+          for (const p of people) {
+            const blocks = byPerson.get(p.id) || [];
+            const blocked = blocks.some(b => overlap(startMin, endMin, b.startMin, b.endMin));
+            if (!blocked) names.push(p.name);
+          }
+          result.push({ dateISO, startMin, endMin, key: `${dateISO}_${startMin}`, availableCount: names.length, availableNames: names, total: people.length });
+        }
+      }
+      return result;
+    }
+    function cellClass(cell) {
+      if (cell.total === 0 || cell.availableCount === 0) return "zero";
+      const ratio = cell.availableCount / cell.total;
+      if (ratio === 1) return "full";
+      if (ratio >= 0.75) return "high";
+      if (ratio >= 0.5) return "mid";
+      return "low";
+    }
+    function sameNames(a, b) {
+      if (a.length !== b.length) return false;
+      for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
+      return true;
+    }
+    function computeRecommendations(cells) {
+      let ranked = cells.filter(c => c.availableCount >= state.minCountFilter).sort((a, b) => {
+        if (b.availableCount !== a.availableCount) return b.availableCount - a.availableCount;
+        return a.dateISO.localeCompare(b.dateISO) || a.startMin - b.startMin;
+      });
+      if (!state.mergeRecommend) return ranked.slice(0, state.recommendCount);
+      const merged = [];
+      for (const cell of ranked) {
+        const last = merged[merged.length - 1];
+        if (last && last.availableCount === cell.availableCount && last.dateISO === cell.dateISO && last.endMin === cell.startMin && sameNames(last.availableNames, cell.availableNames)) last.endMin = cell.endMin;
+        else merged.push({ ...cell });
+      }
+      merged.sort((a, b) => {
+        if (b.availableCount !== a.availableCount) return b.availableCount - a.availableCount;
+        const lenA = a.endMin - a.startMin;
+        const lenB = b.endMin - b.startMin;
+        if (lenB !== lenA) return lenB - lenA;
+        return a.dateISO.localeCompare(b.dateISO) || a.startMin - b.startMin;
+      });
+      return merged.slice(0, state.recommendCount);
+    }
+
+
+    function renderPeople() {
+      els.peopleList.innerHTML = "";
+      if (!state.people.length) return els.peopleList.innerHTML = '<div class="sub">아직 사람이 없습니다.</div>';
+      for (const p of state.people) {
+        const div = document.createElement("div"); div.className = "item";
+        div.innerHTML = `<div><div class="meta"><strong>${escapeHtml(p.name)}</strong><span class="badge">${escapeHtml(p.homeCampus)}</span></div></div>`;
+        const btn = document.createElement("button"); btn.className = "danger tiny"; btn.textContent = "삭제"; btn.onclick = () => removePerson(p.id);
+        div.appendChild(btn); els.peopleList.appendChild(div);
+      }
+    }
+    function renderTimetables() {
+      els.timetableList.innerHTML = "";
+      if (!state.timetables.length) return els.timetableList.innerHTML = '<div class="sub">아직 시간표가 없습니다.</div>';
+      for (const t of state.timetables) {
+        const div = document.createElement("div");
+        div.className = `item ${t.id === state.selectedTimetableId ? "active" : ""}`;
+        div.innerHTML = `<div><div class="meta"><strong>${escapeHtml(t.name)}</strong><span class="badge">참여 ${t.participantIds.length}명</span></div>${t.description ? `<div class="sub" style="margin-top:4px;">${escapeHtml(t.description)}</div>` : ""}</div>`;
+        const btn = document.createElement("button"); btn.className = "tiny"; btn.textContent = "선택"; btn.onclick = () => { state.selectedTimetableId = t.id; if (!els.eventTitle.value) els.eventTitle.value = t.name; render(); };
+        div.appendChild(btn); els.timetableList.appendChild(div);
+      }
+    }
+    function renderParticipantSelect() {
+      const tt = getSelectedTimetable();
+      if (!tt) { els.participantSelect.innerHTML = ""; return; }
+      const available = state.people.filter(p => !tt.participantIds.includes(p.id));
+      els.participantSelect.innerHTML = available.map(p => `<option value="${p.id}">${escapeHtml(p.name)} (${escapeHtml(p.homeCampus)})</option>`).join("");
+    }
+    function renderParticipants() {
+      const tt = getSelectedTimetable();
+      els.participantList.innerHTML = "";
+      if (!tt) return els.participantList.innerHTML = '<div class="sub">시간표를 먼저 선택하세요.</div>';
+      const people = timetableParticipants();
+      if (!people.length) return els.participantList.innerHTML = '<div class="sub">아직 참여자가 없습니다.</div>';
+      for (const p of people) {
+        const div = document.createElement("div"); div.className = "item";
+        div.innerHTML = `<div><div class="meta"><strong>${escapeHtml(p.name)}</strong><span class="badge">${escapeHtml(p.homeCampus)}</span></div></div>`;
+        const btn = document.createElement("button"); btn.className = "danger tiny"; btn.textContent = "제거"; btn.onclick = () => removeParticipant(p.id);
+        div.appendChild(btn); els.participantList.appendChild(div);
+      }
+    }
+    function renderEditorPersonOptions() {
+      const people = timetableParticipants();
+      els.editorPerson.innerHTML = people.map(p => `<option value="${p.id}">${escapeHtml(p.name)} (${escapeHtml(p.homeCampus)})</option>`).join("");
+      if (!people.length) { state.editorPersonId = ""; return; }
+      if (!state.editorPersonId || !people.some(p => p.id === state.editorPersonId)) {
+        state.editorPersonId = people[0].id;
+        state.editorCampus = people[0].homeCampus;
+      }
+      els.editorPerson.value = state.editorPersonId;
+      els.editorCampus.value = state.editorCampus;
+    }
+    function renderGlobalEvents() {
+      els.globalEventList.innerHTML = "";
+      if (!state.confirmedEvents.length) return els.globalEventList.innerHTML = '<div class="sub">아직 확정된 일정이 없습니다.</div>';
+      for (const e of state.confirmedEvents.slice().sort((a,b) => a.dateISO.localeCompare(b.dateISO) || a.startMin - b.startMin)) {
+        const tt = state.timetables.find(t => t.id === e.timetableId);
+        const div = document.createElement("div"); div.className = "item";
+        div.innerHTML = `<div><div class="meta"><strong>${escapeHtml(e.title)}</strong><span class="badge">${escapeHtml(e.status)}</span><span class="badge">${escapeHtml(e.campus)} · ${escapeHtml(e.room)}</span></div><div class="sub" style="margin-top:4px;">${e.dateISO} ${minToLabel(e.startMin)}-${minToLabel(e.endMin)} · 출처 ${escapeHtml(tt?.name || "삭제된 시간표")}</div></div>`;
+        const btn = document.createElement("button"); btn.className = "danger tiny"; btn.textContent = "삭제"; btn.onclick = () => { state.confirmedEvents = state.confirmedEvents.filter(x => x.id !== e.id); render(); };
+        div.appendChild(btn); els.globalEventList.appendChild(div);
+      }
+    }
+    function renderEditorGrid() {
+      const tt = getSelectedTimetable();
+      if (!tt) return els.editorGrid.innerHTML = "";
+      els.editorDateField.style.display = state.editorMode === "date" ? "block" : "none";
+      const columns = state.editorMode === "weekly" ? DAYS.length : viewDates().length;
+      els.editorGrid.style.gridTemplateColumns = `90px repeat(${columns}, minmax(70px, 1fr))`;
+      const frag = document.createDocumentFragment();
+      const topLeft = document.createElement("div"); topLeft.className = "date-head"; topLeft.textContent = state.editorMode === "weekly" ? "시간 / 요일" : "시간 / 날짜"; frag.appendChild(topLeft);
+      if (state.editorMode === "weekly") {
+        DAYS.forEach(d => { const head = document.createElement("div"); head.className = "date-head"; head.textContent = d; frag.appendChild(head); });
+      } else {
+        for (const d of viewDates()) {
+          const head = document.createElement("div"); head.className = "date-head"; head.innerHTML = `<div>${dateLabel(d).split(" ")[0]}</div><div style="font-size:11px;color:#64748b;margin-top:2px;">${dateLabel(d).split(" ")[1] || ""}</div>`; frag.appendChild(head);
+        }
+      }
+      for (const startMin of SLOT_STARTS) {
+        const time = document.createElement("div"); time.className = "time-cell"; time.textContent = minToLabel(startMin); frag.appendChild(time);
+        if (state.editorMode === "weekly") DAYS.forEach((_, dayIndex) => frag.appendChild(makeEditorCell({ mode: "weekly", dayIndex, startMin })));
+        else viewDates().forEach(d => frag.appendChild(makeEditorCell({ mode: "date", dateISO: toISODate(d), startMin })));
+      }
+      els.editorGrid.innerHTML = ""; els.editorGrid.appendChild(frag);
+    }
+    function makeEditorCell(payload) {
+      const div = document.createElement("div"); div.className = "editor-cell";
+      const personId = state.editorPersonId; const campus = state.editorCampus;
+      const blocked = payload.mode === "weekly" ? hasWeeklyCell(personId, payload.dayIndex, payload.startMin, campus) : hasDateCell(personId, payload.dateISO, payload.startMin, campus);
+      if (blocked) div.classList.add("blocked");
+      div.dataset.mode = payload.mode; if (payload.dayIndex != null) div.dataset.dayIndex = payload.dayIndex; if (payload.dateISO) div.dataset.dateIso = payload.dateISO; div.dataset.startMin = payload.startMin;
+      div.addEventListener("mousedown", (e) => {
+        e.preventDefault(); if (!state.editorPersonId) return;
+        const exists = payload.mode === "weekly" ? hasWeeklyCell(personId, payload.dayIndex, payload.startMin, campus) : hasDateCell(personId, payload.dateISO, payload.startMin, campus);
+        state.drag.active = true; state.drag.mode = exists ? "remove" : "add"; state.drag.touched = new Set(); touchEditorCell(div);
+      });
+      div.addEventListener("mouseenter", () => { if (!state.drag.active) return; touchEditorCell(div); });
+      return div;
+    }
+    function touchEditorCell(div) {
+      const key = `${div.dataset.mode}|${div.dataset.dayIndex || ""}|${div.dataset.dateIso || ""}|${div.dataset.startMin}|${state.editorPersonId}|${state.editorCampus}`;
+      if (state.drag.touched.has(key)) return;
+      state.drag.touched.add(key);
+      const startMin = Number(div.dataset.startMin);
+      if (div.dataset.mode === "weekly") toggleWeeklyCell(state.editorPersonId, Number(div.dataset.dayIndex), startMin, state.editorCampus, state.drag.mode);
+      else toggleDateCell(state.editorPersonId, div.dataset.dateIso, startMin, state.editorCampus, state.drag.mode);
+      render();
+    }
+    function renderCalendar() {
+      const tt = getSelectedTimetable();
+      if (!tt) return els.calendarGrid.innerHTML = "";
+      const dates = viewDates();
+      const cells = computeCalendarCells();
+      const cellMap = new Map(cells.map(c => [c.key, c]));
+      const total = timetableParticipants().length;
+      els.summaryText.textContent = `참여 ${total}명 · ${dates.length}일`; 
+      els.calendarGrid.style.gridTemplateColumns = `90px repeat(${dates.length}, minmax(72px, 1fr))`;
+      const frag = document.createDocumentFragment();
+      const topLeft = document.createElement("div"); topLeft.className = "date-head"; topLeft.textContent = "시간"; frag.appendChild(topLeft);
+      for (const d of dates) {
+        const head = document.createElement("div"); head.className = "date-head"; head.innerHTML = `<div>${String(d.getMonth()+1).padStart(2,"0")}/${String(d.getDate()).padStart(2,"0")}</div><div style="font-size:11px;color:#64748b;margin-top:2px;">${DAYS[weekdayIndexFromDate(d)]}</div>`; frag.appendChild(head);
+      }
+      for (const startMin of SLOT_STARTS) {
+        const time = document.createElement("div"); time.className = "time-cell"; time.textContent = minToLabel(startMin); frag.appendChild(time);
+        for (const d of dates) {
+          const key = `${toISODate(d)}_${startMin}`;
+          const cell = cellMap.get(key) || { availableCount: 0, availableNames: [], total, dateISO: toISODate(d), startMin, endMin: startMin + SLOT_MIN };
+          const btn = document.createElement("div"); btn.className = `calendar-cell ${cellClass(cell)}`; btn.textContent = cell.availableCount; btn.onclick = () => openDetail(cell); frag.appendChild(btn);
+        }
+      }
+      els.calendarGrid.innerHTML = ""; els.calendarGrid.appendChild(frag);
+      renderRecommendations(cells);
+    }
+    function renderRecommendations(cells) {
+      const recs = computeRecommendations(cells);
+      els.recommendList.innerHTML = "";
+      if (!recs.length) return els.recommendList.innerHTML = '<div class="sub">추천할 시간이 없습니다.</div>';
+      for (const rec of recs) {
+        const div = document.createElement("div"); div.className = "item";
+        div.innerHTML = `<div style="width:100%;"><div class="meta"><strong>${rec.dateISO} ${minToLabel(rec.startMin)}-${minToLabel(rec.endMin)}</strong><span class="badge">${rec.availableCount}명 가능</span></div><div class="names">${rec.availableNames.map(n => `<span class="badge">${escapeHtml(n)}</span>`).join("")}</div></div>`;
+        const btn = document.createElement("button"); btn.className = "tiny"; btn.textContent = "이 시간 채우기"; btn.onclick = () => { els.eventDate.value = rec.dateISO; els.eventStart.value = String(rec.startMin); els.eventEnd.value = String(rec.endMin); if (!els.eventTitle.value) els.eventTitle.value = getSelectedTimetable()?.name || ""; };
+        div.appendChild(btn); els.recommendList.appendChild(div);
+      }
+    }
+    function renderTimetableEvents() {
+      const tt = getSelectedTimetable();
+      els.timetableEventList.innerHTML = "";
+      if (!tt) return els.timetableEventList.innerHTML = '<div class="sub">시간표를 선택하세요.</div>';
+      const list = state.confirmedEvents.filter(e => e.timetableId === tt.id).sort((a,b) => a.dateISO.localeCompare(b.dateISO) || a.startMin - b.startMin);
+      if (!list.length) return els.timetableEventList.innerHTML = '<div class="sub">이 시간표에서 아직 확정한 일정이 없습니다.</div>';
+      for (const e of list) {
+        const div = document.createElement("div"); div.className = "item";
+        const names = e.participantIds.map(id => getPerson(id)?.name).filter(Boolean).join(", ");
+        div.innerHTML = `<div><div class="meta"><strong>${escapeHtml(e.title)}</strong><span class="badge">${escapeHtml(e.status)}</span><span class="badge">${escapeHtml(e.campus)} · ${escapeHtml(e.room)}</span></div><div class="sub" style="margin-top:4px;">${e.dateISO} ${minToLabel(e.startMin)}-${minToLabel(e.endMin)} · 참여자 ${escapeHtml(names)}</div></div>`;
+        const btn = document.createElement("button"); btn.className = "danger tiny"; btn.textContent = "삭제"; btn.onclick = () => { state.confirmedEvents = state.confirmedEvents.filter(x => x.id !== e.id); render(); };
+        div.appendChild(btn); els.timetableEventList.appendChild(div);
+      }
+    }
+    function openDetail(cell) {
+      els.modalBody.innerHTML = `<div class="item" style="padding:12px;"><div><div class="meta"><span class="badge">가능 ${cell.availableCount}명</span></div><div style="margin-top:8px;font-weight:800;">${escapeHtml(cell.dateISO)} ${minToLabel(cell.startMin)}-${minToLabel(cell.endMin)}</div></div></div><div><div style="font-weight:800;margin-bottom:8px;">참여 가능한 이름</div><div class="names">${cell.availableNames.length ? cell.availableNames.map(n => `<span class="badge">${escapeHtml(n)}</span>`).join("") : '<span class="sub">가능한 사람이 없습니다.</span>'}</div></div>`;
+      els.detailModal.classList.add("open");
+    }
+    function closeDetail() { els.detailModal.classList.remove("open"); }
+    function confirmEvent() {
+      const tt = getSelectedTimetable();
+      if (!tt) return;
+      const participantIds = tt.participantIds.slice();
+      if (!participantIds.length) return;
+      const title = els.eventTitle.value.trim() || tt.name;
+      const dateISO = els.eventDate.value;
+      const startMin = Number(els.eventStart.value);
+      const endMin = Number(els.eventEnd.value);
+      if (!dateISO || endMin <= startMin) return;
+      state.confirmedEvents.push({
+        id: uid("ev"),
+        timetableId: tt.id,
+        title,
+        dateISO,
+        startMin,
+        endMin,
+        campus: els.eventCampus.value,
+        room: els.eventRoom.value,
+        status: els.eventStatus.value,
+        participantIds,
+      });
+      render();
+    }
+    function persist() {
+      localStorage.setItem("tab1_scheduler_v1", JSON.stringify({
+        people: state.people,
+        timetables: state.timetables,
+        weeklyRules: state.weeklyRules,
+        dateRules: state.dateRules,
+        confirmedEvents: state.confirmedEvents,
+        selectedTimetableId: state.selectedTimetableId,
+        editorMode: state.editorMode,
+        editorPersonId: state.editorPersonId,
+        editorCampus: state.editorCampus,
+        editorDate: state.editorDate,
+        viewStartDate: toISODate(state.viewStartDate),
+        viewWeeks: state.viewWeeks,
+        minCountFilter: state.minCountFilter,
+        recommendCount: state.recommendCount,
+        mergeRecommend: state.mergeRecommend,
+      }));
+    }
+    function loadPersisted() {
+      const raw = localStorage.getItem("tab1_scheduler_v1"); if (!raw) return;
+      try {
+        const data = JSON.parse(raw);
+        state.people = Array.isArray(data.people) ? data.people : [];
+        state.timetables = Array.isArray(data.timetables) ? data.timetables : [];
+        state.weeklyRules = Array.isArray(data.weeklyRules) ? data.weeklyRules : [];
+        state.dateRules = Array.isArray(data.dateRules) ? data.dateRules : [];
+        state.confirmedEvents = Array.isArray(data.confirmedEvents) ? data.confirmedEvents : [];
+        state.selectedTimetableId = data.selectedTimetableId || "";
+        state.editorMode = data.editorMode || "weekly";
+        state.editorPersonId = data.editorPersonId || "";
+        state.editorCampus = data.editorCampus || "율전";
+        state.editorDate = data.editorDate || toISODate(new Date());
+        state.viewStartDate = data.viewStartDate ? parseISODate(data.viewStartDate) : getMonday(new Date());
+        state.viewWeeks = Number(data.viewWeeks) || 2;
+        state.minCountFilter = Number(data.minCountFilter) || 0;
+        state.recommendCount = Number(data.recommendCount) || 10;
+        state.mergeRecommend = data.mergeRecommend !== false;
+      } catch (e) { console.error(e); }
+    }
+    function exportJSON() {
+      const blob = new Blob([JSON.stringify({
+        people: state.people,
+        timetables: state.timetables,
+        weeklyRules: state.weeklyRules,
+        dateRules: state.dateRules,
+        confirmedEvents: state.confirmedEvents,
+      }, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a"); a.href = url; a.download = "tab1_scheduler_backup.json"; a.click(); URL.revokeObjectURL(url);
+    }
+    function importJSON(file) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          const data = JSON.parse(reader.result);
+          state.people = Array.isArray(data.people) ? data.people : [];
+          state.timetables = Array.isArray(data.timetables) ? data.timetables : [];
+          state.weeklyRules = Array.isArray(data.weeklyRules) ? data.weeklyRules : [];
+          state.dateRules = Array.isArray(data.dateRules) ? data.dateRules : [];
+          state.confirmedEvents = Array.isArray(data.confirmedEvents) ? data.confirmedEvents : [];
+          state.selectedTimetableId = state.timetables[0]?.id || "";
+          render();
+        } catch (e) { alert("불러오기 실패"); }
+      };
+      reader.readAsText(file);
+    }
+    function seedDemo() {
+      if (state.people.length || state.timetables.length) return;
+      const a = { id: uid("p"), name: "주환", homeCampus: "율전" };
+      const b = { id: uid("p"), name: "혜원", homeCampus: "명륜" };
+      const c = { id: uid("p"), name: "가은", homeCampus: "율전" };
+      const d = { id: uid("p"), name: "서림", homeCampus: "명륜" };
+      state.people = [a,b,c,d];
+      const t1 = { id: uid("tt"), name: "정기합주", description: "메인 합주 시간 맞추기", participantIds: [a.id,b.id,c.id,d.id] };
+      const t2 = { id: uid("tt"), name: "클라 파트연습", description: "파트별 연습", participantIds: [a.id,c.id] };
+      state.timetables = [t1,t2];
+      state.selectedTimetableId = t1.id;
+      state.editorPersonId = a.id;
+      state.editorCampus = a.homeCampus;
+      state.weeklyRules = [
+        { id: uid("w"), timetableId: t1.id, personId: a.id, dayIndex: 0, startMin: 15*60, endMin: 17*60+30, campus: "율전" },
+        { id: uid("w"), timetableId: t1.id, personId: b.id, dayIndex: 0, startMin: 18*60+30, endMin: 20*60, campus: "명륜" },
+        { id: uid("w"), timetableId: t1.id, personId: c.id, dayIndex: 1, startMin: 10*60+30, endMin: 12*60, campus: "율전" }
+      ];
+      state.dateRules = [
+        { id: uid("d"), timetableId: t1.id, personId: a.id, dateISO: toISODate(addDays(state.viewStartDate, 4)), startMin: 9*60, endMin: 12*60, campus: "율전" }
+      ];
+      state.confirmedEvents = [
+        { id: uid("ev"), timetableId: t2.id, title: "클라 파트연습", dateISO: toISODate(addDays(state.viewStartDate, 2)), startMin: 18*60, endMin: 20*60, campus: "율전", room: "동방", status: "계획중", participantIds: [a.id, c.id] }
+      ];
+      render();
+    }
+    function syncInputsFromState() {
+      els.viewStartDate.value = toISODate(state.viewStartDate);
+      els.viewWeeks.value = String(state.viewWeeks);
+      els.editorDate.value = state.editorDate;
+      els.minCountFilter.value = String(state.minCountFilter);
+      els.recommendCount.value = String(state.recommendCount);
+      els.mergeRecommend.value = state.mergeRecommend ? "on" : "off";
+      els.tabButtons.forEach(btn => btn.classList.toggle("active", btn.dataset.editorMode === state.editorMode));
+      const tt = getSelectedTimetable();
+      if (tt && !els.eventTitle.value) els.eventTitle.value = tt.name;
+      els.eventDate.value = els.eventDate.value || toISODate(state.viewStartDate);
+      syncEventRooms();
+    }
+    function render() {
+      syncInputsFromState();
+      renderPeople();
+      renderTimetables();
+      renderParticipantSelect();
+      renderParticipants();
+      renderEditorPersonOptions();
+      renderGlobalEvents();
+      renderEditorGrid();
+      renderCalendar();
+      renderTimetableEvents();
+      persist();
+    }
+    function bindEvents() {
+      els.addPersonBtn.addEventListener("click", () => { addPerson(els.personName.value, els.personCampus.value); els.personName.value = ""; });
+      els.seedBtn.addEventListener("click", seedDemo);
+      els.exportBtn.addEventListener("click", exportJSON);
+      els.importFile.addEventListener("change", (e) => { const f = e.target.files?.[0]; if (f) importJSON(f); });
+      els.addTimetableBtn.addEventListener("click", () => { addTimetable(els.timetableName.value, els.timetableDesc.value); els.timetableName.value = ""; els.timetableDesc.value = ""; });
+      els.deleteTimetableBtn.addEventListener("click", deleteSelectedTimetable);
+      els.addParticipantBtn.addEventListener("click", () => addParticipant(els.participantSelect.value));
+      els.editorPerson.addEventListener("change", () => { state.editorPersonId = els.editorPerson.value; const p = getPerson(state.editorPersonId); if (p) state.editorCampus = p.homeCampus; render(); });
+      els.editorCampus.addEventListener("change", () => { state.editorCampus = els.editorCampus.value; render(); });
+      els.editorDate.addEventListener("change", () => { state.editorDate = els.editorDate.value; });
+      els.viewStartDate.addEventListener("change", () => { state.viewStartDate = parseISODate(els.viewStartDate.value); render(); });
+      els.viewWeeks.addEventListener("change", () => { state.viewWeeks = Number(els.viewWeeks.value); render(); });
+      els.minCountFilter.addEventListener("change", () => { state.minCountFilter = Number(els.minCountFilter.value); render(); });
+      els.recommendCount.addEventListener("change", () => { state.recommendCount = Number(els.recommendCount.value); render(); });
+      els.mergeRecommend.addEventListener("change", () => { state.mergeRecommend = els.mergeRecommend.value === "on"; render(); });
+      els.eventCampus.addEventListener("change", syncEventRooms);
+      els.confirmEventBtn.addEventListener("click", confirmEvent);
+      els.tabButtons.forEach(btn => btn.addEventListener("click", () => { state.editorMode = btn.dataset.editorMode; render(); }));
+      document.addEventListener("mouseup", () => { state.drag.active = false; state.drag.mode = null; state.drag.touched = new Set(); });
+      els.closeModalBtn.addEventListener("click", closeDetail);
+      els.detailModal.addEventListener("click", (e) => { if (e.target === els.detailModal) closeDetail(); });
+    }
+    loadPersisted();
+    bindEvents();
+    render();
+  </script>
+</body>
+</html>
